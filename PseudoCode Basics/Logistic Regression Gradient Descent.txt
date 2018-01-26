@@ -1,0 +1,41 @@
+//The idea behind forward and back propogation is simle and clean.
+//forward prop: The idea is to generate the value of cost function 
+//backward prop: The idea is to get back to the parameters which gave us the cost function value and find derivatives.  
+
+Cost Function: J=0;
+
+Features: w1,w2 ;
+
+dw1 : Derivative of J with w1. We want to decrease it to get minima.
+dw2 : Derivative of J with w2. We want to decrease it to get minima.
+
+db: Derivative of J with b. We want to decrease it to get minima.
+
+loop start:
+  
+
+    z(i)=w[x(i)]+b;
+    a(i)= sigmoid(z(i)); //output from the model
+
+    J+=-(y(i)*log(a(i)+(1-y(i))(log(1-a(i)))); //We are using this instead of squared error as this makes sure we have sinle minima.
+
+    dz(i)=a(i)-y(i); //this is intermediate z.
+    //-----------------We will need another loop here------------------------------------------------------------------------------------
+    dw1+=x1(i)*dz(i); //we accumulate over the all the real inputs ---It is not for [i]th
+    dw2+=x2(i)*dz(i); //we accumulate over the all the real inputs
+    //-------------------------------------------------------------------------------
+    db+=dz(i);
+
+loop end.
+
+
+J=J/m;
+dw1=dw1/m; //Once we get this ----> w1= w1-(alpha)*(dw1) //-----
+dw2=dw2/m;
+db=db/m;
+
+
+
+Once we get new w1, we do forward propogation and then backward propogation again and again 
+
+// We are talking about 2 for loops ! Instead we can use vectorization !

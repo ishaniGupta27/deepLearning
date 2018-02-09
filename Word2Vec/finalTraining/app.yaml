@@ -1,0 +1,3 @@
+entrypoint: python negSample2.py
+env: flex
+runtime: python

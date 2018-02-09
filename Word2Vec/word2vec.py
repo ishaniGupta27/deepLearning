@@ -1,5 +1,6 @@
 import numpy as np 
 import json
+import zipfile
 
 with open('config.json') as json_data_file:
     ConfigJsondata = json.load(json_data_file)
@@ -55,6 +56,17 @@ def to_one_hot(data_point_index, vocab_size):
     temp = np.zeros(vocab_size)
     temp[data_point_index] = 1
     return temp
+
+def hot_to_number(data_point_index):
+    res=0
+    it = np.nditer(data_point_index, flags=['f_index'])
+    while not it.finished:
+        if it[0] == 1.0:
+            res=it.index
+            break
+        it.iternext()
+        
+    return res
 #------------------------------------------------------------------------------------------##
 
 #------------------------------------------------------------------------------------------##
@@ -62,26 +74,68 @@ def to_one_hot(data_point_index, vocab_size):
 #------------------------------------------------------------------------------------------##
 
 corpus_raw="hot king  king .  king  terror . sex king   queen"
+def read_data(filename):
+    with zipfile.ZipFile(filename) as f:
+        data = f.read(f.namelist()[0]).split()
+    return data
+
+corpus_raw = read_data('text8.zip')
+print (corpus_raw[1:10]) #this data is clean data..no fulls ops nohhing
+
+#corpus_raw = fileData.readlines()
+#corpus_raw="hot king  king .  king  terror . sex king   queen"
 #TO CHECK :print word2int['zoo'] #not in order...does it matter??
 #converting to lower case
-corpus_raw=corpus_raw.lower()
+#corpus_raw=corpus_raw.lower()
 #handling multiple sentences
-raw_sentences=corpus_raw.split('.')##Split sentences to test and train here ..maybe??
-sentDict=[] #these are the words in sentences
-for sen in raw_sentences:
-    sentDict.append(sen.split())
-
+#raw_sentences=corpus_raw.split('.')##Split sentences to test and train here ..maybe??
+#sentDict=[] #these are the words in sentences
+#for sen in raw_sentences:
+    #sentDict.append(sen.split())
+#print sentDict[1]
 #Lets generate the training set according to window
-data=[] #it will have one center word and its neighbours for many center words
+#data=[] #it will have one center word and its neighbours for many center words
 data = []
 WINDOW_SIZE = int(ConfigJsondata["hyperparameters"]["window_size"])
-for sentence in sentDict: #pick a sentence at a time
-    for word_index, word in enumerate(sentence):
-        for nb_word in sentence[max(word_index - WINDOW_SIZE, 0) : min(word_index + WINDOW_SIZE, len(sentence)) + 1] :  #all the neighbour word for "word"
-            if nb_word != word:
-                data.append([word, nb_word])
+#for sentence in sentDict: #pick a sentence at a time
+for word_index, word in enumerate(corpus_raw[1:50]):
+    if(word_index>=WINDOW_SIZE):
+        counter=0;
+        while counter<WINDOW_SIZE:
+            #0,1
+            '''
+            Sanity check
+            print "word is..."
+            print word 
+            print word_index
+            print "prev word is..."
+            print corpus_raw[word_index-(counter)]
+            print word_index-(counter)
+            print "next word is..."
+            print corpus_raw[word_index+counter+2]
+            print word_index+counter+2
+            '''
+            if word in vocabWordsDict:
+                if corpus_raw[word_index-(counter)] in vocabWordsDict:
+                    print "------------------"
+                    print corpus_raw[word_index-(counter)]
+                    data.append([word, corpus_raw[word_index-(counter)]])# 2-0-1=1,2-1-1=0
+                #else:
+                    #data.append([word, "markedUn"])# marking unknown 
 
-
+                if corpus_raw[word_index+counter+2] in vocabWordsDict:
+                    print "------------------"
+                    print corpus_raw[word_index+counter+2]
+                    data.append([word, corpus_raw[word_index+counter+2]])# 2+0+1=3,2+1+1=4
+                #else:
+                   # data.append([word, "markedUn"])# marking unknown 
+                    
+            counter=counter+1
+            #for nb_word in sentence[max(word_index - WINDOW_SIZE, 0) : min(word_index + WINDOW_SIZE, len(sentence)) + 1] :  #all the neighbour word for "word"
+               # if nb_word != word:
+                   # data.append([word, nb_word])
+#print data
+#print word2int["class"]
 #print "------Printing th tuple------"
 #print data
 #------------------------------------------------------------------------------------------##
@@ -96,15 +150,18 @@ for sentence in sentDict: #pick a sentence at a time
 
 x_train_real = [] # input word--Center word in our case
 y_train_real = [] # output word---> nb word ! the one forming a tuple
-for data_word in data:
+for data_word in data[0:10]:
+    #print data_word
     x_train_real.append(to_one_hot(word2int[ data_word[0] ], vocabSize))
     y_train_real.append(to_one_hot(word2int[ data_word[1] ], vocabSize))
 
 
 # convert them to numpy arrays
-x_train = np.asarray(x_train_real[0:1])
-y_train = np.asarray(y_train_real[0:1])
+x_train = np.asarray(x_train_real)
+y_train = np.asarray(y_train_real)
 
+#print x_train
+#print y_train
 #------------------------------------------------------------------------------------------##
 #------------------------------DATA TO ONE HOT VECTOR end----------------------------------##
 #------------------------------------------------------------------------------------------##
@@ -177,10 +234,9 @@ def initialize_parameters(n_x, n_h, n_y):
                     W1 -- weight matrix of shape (n_h, n_x)
                     W2 -- weight matrix of shape (n_y, n_h)
     """
-    
-    W1 = np.random.randn(n_x,n_h)*0.008 #this is vocab * dimen==> V*H
-    W2 = np.random.randn(n_h,n_y)*0.008 #this is dimen * vocab ===> H*V
-    
+    W1 = np.random.uniform(low=-0.5/n_h, high=0.5/n_h, size=(n_x, n_h))
+    #W1 = np.random.randn(n_x,n_h)*0.08 #this is vocab * dimen==> V*H
+    W2 = np.zeros(shape=(n_h, n_y)) #this is dimen * vocab ===> H*V
     #Is there any relation between W1 and W2
    
     
@@ -206,29 +262,40 @@ def forward_propagation(X, parameters):
     W1 = parameters["W1"] 
     W2 = parameters["W2"]
    
-    
+    print "Shape of X1"
+    print X.shape  ##this is 1*5
+
     
     # Implementing Forward Propagation to calculate output vectors
     
     Z1 = np.dot(X,W1)  #X---no. of examples*vocab (1*7), W1:: vocab * dimen = 7*5
     A1 = Z1 ## this is dimen*1
-    #print "Shape of A1"
-    #print A1.shape  ##this is 1*5
+    print "Shape of A1"
+    print A1.shape  ##this is 1*5
 
     ##h---------------CONTEXT WINDOW-------------------------------------------------
     Z2_first = np.dot(A1,W2) #W2::: dimension * vocab==> 5*7, A1:: 1* dimension= 1*5
-    A2_first = softmax_function(Z2_first)
+    ##----------------------------------------------------------------------------------
+    ##---------------------NEGATIVE SAMPLING--------------------------------------------
+    ##---------------------------------------------------------------------------------- 
+    ##----------------------------------------------------------------------------------
+    #The idea behind negative sampling is to reduce the dimansions of 
+    print "Shape of Z2_first"
+    print Z2_first.shape  ##this is 1*5
+    A2 = softmax_function(Z2_first)
     #print "Shape of A2_first"
     #print A2_first.shape  ##this is 1*7
+    '''
     c=0
     val=np.multiply(WINDOW_SIZE,2)
+    #the idea is to reduce the
     A2 = np.empty((val, vocabSize))
     while c<val:
-        A2[c]=A2_first;
+        A2[c]=A2_first; #this is the same value repeated all the time ! dimension:: c*vocab!
         c=c+1
     #print "Shape of A2 after loop"
     #print A2.shape  ##this is 4*7--> this is windowsize*vocabsize
-    
+    '''
 
 
     cache = {"X1":X,
@@ -268,26 +335,43 @@ def stg_update_parameters(parameters,errorArr,cache,learning_rate,dimen):
         i=i+1
     '''
     #vectorizing
+    '''
     c=0
     val=np.multiply(WINDOW_SIZE,2)
     A1_moif = np.empty((val, dimen))
     while c<val:
         A1_moif[c]=A1;
         c=c+1
-
-    W2=W2-np.transpose((learning_rate)*(np.dot(np.transpose(errorArr),A1_moif)))
+    '''
+    W2=W2-np.transpose((learning_rate)*(np.dot(np.transpose(errorArr),A1)))
    
     
     ##similar to be done for W2
+    '''
     c=0
     X1_moif = np.empty((val, vocabSize))
     while c<val:
         X1_moif[c]=X1;
         c=c+1
+    '''
     #This is for which this whole thing is done for !
-    W1=W1-np.transpose((learning_rate)*(np.dot(np.transpose(np.dot(errorArr,np.transpose(W2))),X1_moif)))
-   
-
+    print '------------------------------------------'
+    print '----------------here 1--------------------------'
+    print hot_to_number(X1)
+    print '------------------------------------------'
+    print '----------------here 1--------------------------'
+    print W1[hot_to_number(X1-1),:] 
+    print W1[hot_to_number(X1),:] #Sanity Check ! there should be change in central word!
+    print '------------------------------------------'
+    print '------------------------------------------'
+    W1=W1-np.transpose((learning_rate)*(np.dot(np.transpose(np.dot(errorArr,np.transpose(W2))),X1)))
+    print '------------------------------------------'
+    print '---------------here 2---------------------------'
+    print W1[hot_to_number(X1-1),:] #Sanity check
+    print W1[hot_to_number(X1),:] #Sanity check
+    print '------------------------------------------'
+    print '------------------------------------------'
+ 
 
     parameters = {"W1": W1,
                   "W2": W2}
@@ -350,27 +434,32 @@ def skipgram_model_loop(X, Y, n_h, num_iterations = 100):
     parameters = initialize_parameters(n_x, n_h, n_y)
     W1 = parameters["W1"]
     W2 = parameters["W2"]
-    
+    '''
     target = np.empty(((WINDOW_SIZE*2), vocabSize))
      #hardcoded ! ##need to be changed 
-    target[0]=to_one_hot(word2int["is"],vocabSize) #expected Output
-    target[1]=to_one_hot(word2int["the"],vocabSize)
-    target[2]=to_one_hot(word2int["is"],vocabSize) #expected Output
-    target[3]=to_one_hot(word2int["the"],vocabSize)
+    target[0]=to_one_hot(word2int["king"],vocabSize) #expected Output
+    target[1]=to_one_hot(word2int["hot"],vocabSize)
+    target[2]=to_one_hot(word2int["king"],vocabSize) #expected Output
+    target[3]=to_one_hot(word2int["hot"],vocabSize)
     print "target shape is "
     print target.shape
-
-    for i in range(0, num_iterations):
-         
+    print '------------------------------------------'
+    print '------------------------------------------'
+    print parameters["W1"]
+    print '------------------------------------------'
+    print '------------------------------------------'
+    '''
+    for word_indx in range(len(X)):
         ### START CODE HERE ###
         # Forward propagation. Inputs: "X, parameters". Outputs: "A2, cache".
-        cache = forward_propagation(X, parameters)
-        
+        # X --> its is no. of center words * vocabsize
+        cache = forward_propagation(X[[word_indx],:], parameters)
+        target = Y[[word_indx],:]#np.empty((1, vocabSize))
         errorArr=target-cache["A2"]
-        print "error shape is"
-        print errorArr.shape #--->this is 4*7
-        parameters = stg_update_parameters(parameters,errorArr,cache,0.1,n_h)
-        
+        #print "error shape is"
+        #print errorArr.shape #--->this is 4*7
+        parameters = stg_update_parameters(parameters,errorArr,cache,0.5,n_h)
+        ##break;
         ### END CODE HERE ###
         
         
@@ -393,8 +482,8 @@ def skipgram_model_loop(X, Y, n_h, num_iterations = 100):
 
     
 
-
-print skipgram_model_loop(x_train,y_train,5,num_iterations=100)
+#def mainFunc():
+print skipgram_model_loop(x_train,y_train,5,num_iterations=1)["W1"]
 
 
 

@@ -157,7 +157,7 @@ sys.stdout.write("\n--------------------------------\n")
 data = []
 WINDOW_SIZE = int(ConfigJsondata["hyperparameters"]["window_size"])
 #for sentence in sentDict: #pick a sentence at a time
-for word_index, word in enumerate(corpus_raw):
+for word_index, word in enumerate(corpus_raw[1:500]):
     #if word_index%100000 == 0:
         #print word
     if(word_index>=WINDOW_SIZE & word_index<(corpus_size-10)):
@@ -226,16 +226,17 @@ for indx,data_word in enumerate(data):
     if indx%100000==0:
         print '-----------'
         print indx
-    x_train_real.append(to_one_hot(word2int[ data_word[0] ], vocabSize))
-    y_train_real.append(to_one_hot(word2int[ data_word[1] ], vocabSize))
+    x_train_real.append(word2int[ data_word[0]])
+    y_train_real.append(word2int[ data_word[1]])
     
 
 
 # convert them to numpy arrays
-x_train = np.asarray(x_train_real)
-y_train = np.asarray(y_train_real)
+x_train = np.asarray(x_train_real).reshape(len(x_train_real),1)
+#x_train = np.asarray(x_train_real)
+y_train = np.asarray(y_train_real).reshape(len(y_train_real),1)
 
-#print x_train
+#print x_train.size
 #print y_train
 #------------------------------------------------------------------------------------------##
 #------------------------------DATA TO ONE HOT VECTOR end----------------------------------##
@@ -325,7 +326,7 @@ def initialize_parameters(n_x, n_h, n_y):
 def forward_propagation_negSam(X, parameters,negSampleIndx,Y):
     """
     Argument:
-    X -- input data of size (n_x, m)
+    X -- input data of size (1, VocabSize)
     parameters -- python dictionary containing your parameters (output of initialization function)
     
     Returns:
@@ -598,14 +599,14 @@ def skipgram_model_dummy(X, Y, n_h):
 #------------------------------------------------------------------------------------------##
 #-----------------------------MAIN FUNCTION START HERE-------------------------------------##
 #------------------------------------------------------------------------------------------##   
-def skipgram_model_loop(X, Y, n_h):
+def skipgram_model_loop(X_raw, Y_raw, n_h):
     
-    n_x = layer_sizes(X, Y)[0] #==vocabsize=7
-    n_y = layer_sizes(X, Y)[2]#==vocabsize=7
-    
-    
+    n_x = vocabSize#layer_sizes(X, Y)[0] #==vocabsize=7
+    n_y = vocabSize#layer_sizes(X, Y)[2]#==vocabsize=7
     
     
+    print "Shape of X_raw"
+    print X_raw.shape
     parameters = initialize_parameters(n_x, n_h, n_y)
     W1 = parameters["W1"]
     W2 = parameters["W2"] #stays intact
@@ -627,18 +628,24 @@ def skipgram_model_loop(X, Y, n_h):
     print '------------------------------------------'
     print '------------------------------------------'
     '''
-    '''
-    for word_indx in range(len(X)):
+    
+    for word_indx in range(len(X_raw)):
         ### START CODE HERE ###
         # Forward propagation. Inputs: "X, parameters". Outputs: "A2, cache".
         # X --> its is no. of center words * vocabsize
+        X=to_one_hot(X_raw[[word_indx],:],vocabSize)
+        Y=to_one_hot(Y_raw[[word_indx],:],vocabSize)
+        X = np.asarray(X).reshape(1,len(X))
+        Y= np.asarray(Y).reshape(1,len(Y))
+        print "Shape of X"
+        print X.shape
         if ConfigJsondata["hyperparameters"]["negSampl"] == 1:
                         #Yippee I am going to set a negative sample
                         table = UnigramTable(vocabWordsDict,vocabWordsDictCounter)
                         negSampleSize=ConfigJsondata["hyperparameters"]["negaSampSize"]
                         negSamples=table.sample(negSampleSize)
                         #print negSamples
-        cache = forward_propagation_negSam(X[[word_indx],:], parameters,negSamples,Y[[word_indx],:])
+        cache = forward_propagation_negSam(X, parameters,negSamples,Y)
         target = np.zeros(shape=(1,ConfigJsondata["hyperparameters"]["negaSampSize"]+1))
         target[0,ConfigJsondata["hyperparameters"]["negaSampSize"]]=1;
         #print target
@@ -650,7 +657,7 @@ def skipgram_model_loop(X, Y, n_h):
         ##break;
         ### END CODE HERE ###
         
-     '''
+     
 
     return parameters
 
